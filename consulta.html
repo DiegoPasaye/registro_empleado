@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        table {
+            background: #ffffff;
+            border-collapse: collapse;
+            width: 100%;
+        }
+        thead {
+            background-color: #343a40;
+            color: white;
+        }
+        th, td {
+            text-align: center;
+            padding: 12px;
+        }
+        tbody tr:hover {
+            background-color: #f1f1f1;
+        }
+        img{
+          width: 15px;
+          height: 15px;
+          cursor: pointer;
+        }
+    </style>
+
+    
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Lista de Empleados</h1>
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Email</th>
+              <th>Puesto</th>
+              <th>Fecha Nacimiento</th>
+              <th>Género</th>
+              <th>Tipo Contrato</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tablaEmpleados">
+          </tbody>
+        </table>
+      </div>
+      <script src="consulta.js"></script>      
+</body>
+</html>
