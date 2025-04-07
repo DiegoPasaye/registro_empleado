@@ -1,7 +1,9 @@
 const express = require('express');
-const mysql = require('mysql2')
 const cors = require('cors')
 const path = require('path')
+const bcrypt = require('bcrypt');
+const mysql = require('mysql2/promise');
+const session = require('express-session')
 
 
 const app = express();
@@ -9,11 +11,25 @@ const PORT = 3000;
 
 
 app.use(express.json());
-app.use(cors());
 app.use(express.static(__dirname));
+app.use(cors({
+    origin: 'http://localhost:3000',
+    credentials: true
+}));
+  
+app.use(session({
+    secret: 'clave_super_secreta',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: false,
+      httpOnly: true,
+      sameSite: 'lax'
+}
+}));
 
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'menu.html'));
+    res.sendFile(path.join(__dirname, 'login.html'));
 });
 app.get('/alta', (req, res) => {
     res.sendFile(path.join(__dirname, 'alta.html'));
@@ -22,17 +38,57 @@ app.get('/consulta', (req, res) => {
     res.sendFile(path.join(__dirname, 'consulta.html'));
 });
 
-
-app.get('/empleados', (req, res) => {
-  const query = 'SELECT id, nombre, email, puesto, fechaNacimiento, genero, tipoContrato FROM empleados';
-  connection.query(query, (error, results) => {
-      if (error) {
-          console.error('Error al consultar empleados:', error);
-          return res.status(500).json({ error: 'Error al obtener empleados' });
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+  
+    try {
+      const [users] = await connection.query('SELECT * FROM usuarios WHERE username = ?', [username]);
+  
+      if (users.length === 0) {
+        return res.status(401).json({ error: 'Usuario no existe' });
       }
-      res.json(results);
-  });
+  
+      const user = users[0];
+      const valid = await bcrypt.compare(password, user.password);
+  
+      if (!valid) {
+        return res.status(401).json({ error: 'Contraseña incorrecta' });
+      }
+  
+      req.session.regenerate(err => {
+        if (err) {
+          console.error('Error al regenerar sesión:', err);
+          return res.status(500).json({ error: 'Error en la sesión' });
+        }
+  
+        req.session.user = {
+          id: user.id,
+          username: user.username,
+          role: user.role
+        };
+  
+        console.log('Sesión creada:', req.session.user); // depuración
+        const redirectURL = user.role === 'admin' ? '/admin-dashboard.html' : '/employee-dashboard.html';
+        res.json({ success: true, redirect: redirectURL });
+      });
+  
+    } catch (error) {
+      console.error('Error en login:', error);
+      res.status(500).json({ error: 'Error en el servidor' });
+    }
 });
+
+
+app.get('/empleados', async (req, res) => {
+  try {
+    const [results] = await connection.query('SELECT id, nombre, email, puesto, fechaNacimiento, genero, tipoContrato FROM empleados');
+    res.json(results);
+  } catch (error) {
+    console.error('Error al consultar empleados:', error);
+    res.status(500).json({ error: 'Error al obtener empleados' });
+  }
+});
+
 app.delete('/empleados/:id', (req, res) => {
   const {id} = req.params
   const query = 'DELETE FROM empleados where id = ?';
@@ -72,6 +128,18 @@ app.post('/register', (req, res) => {
       res.status(201).send('Empleado registrado correctamente');
     });
   });
+
+  app.get('/logout', (req, res) => {
+      req.session.destroy(err => {
+          if (err) {
+              console.error('Error al cerrar sesión:', err);
+              return res.status(500).send('No se pudo cerrar sesión');
+          }
+  
+          res.clearCookie('connect.sid'); // elimina cookie
+          res.redirect('/');
+      });
+  });
   
   // Inicia el servidor
 
@@ -90,9 +158,8 @@ const connection = mysql.createPool({
     password: '',
     database: 'registro_empleado',
     waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
 });
+
 
 connection.getConnection((err, conn) => {
     if (err) {
